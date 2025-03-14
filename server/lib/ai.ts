@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Platform } from "@shared/schema";
 
 const PLATFORM_GUIDELINES = {
@@ -7,7 +6,39 @@ const PLATFORM_GUIDELINES = {
   linkedin: "Professional tone, industry-focused, can include hashtags, max 3000 characters"
 };
 
-export async function generateContent(notes: string, platform: Platform): Promise<string> {
+async function generateSummaryForImage(content: string): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Create a very short, visual description (maximum 20 words) that captures the main theme of this content for image generation: ${content}`
+            }]
+          }]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API request failed: ${error}`);
+    }
+
+    const result = await response.json();
+    return result.candidates[0].content.parts[0].text || "";
+  } catch (error: any) {
+    console.error("Error generating summary:", error);
+    return content.split(' ').slice(0, 10).join(' '); // Fallback to first 10 words if summary fails
+  }
+}
+
+export async function generateContent(notes: string, platform: Platform): Promise<{ content: string; imageUrl: string }> {
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -32,7 +63,10 @@ export async function generateContent(notes: string, platform: Platform): Promis
     }
 
     const result = await response.json();
-    return result.candidates[0].content.parts[0].text || "Failed to generate content";
+    const content = result.candidates[0].content.parts[0].text || "Failed to generate content";
+    const imageSummary = await generateSummaryForImage(content);
+    const imageUrl = generateImageUrl(imageSummary);
+    return { content, imageUrl };
   } catch (error: any) {
     throw new Error(`Failed to generate content: ${error.message}`);
   }

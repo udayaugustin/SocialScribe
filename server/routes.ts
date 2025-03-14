@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContentSchema, platformSchema } from "@shared/schema";
-import { generateContent, generateImageUrl } from "./lib/ai";
+import { generateContent } from "./lib/ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/content", async (req, res) => {
@@ -10,7 +10,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertContentSchema.parse(req.body);
       const content = await storage.createContent(data);
       res.json(content);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
   });
@@ -25,17 +25,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Content not found" });
       }
 
-      const generatedContent = await generateContent(content.notes, platform);
-      const updatedContent = await storage.updateGeneratedContent(id, platform, generatedContent);
-
-      // Generate an image URL using Pollinations.AI
-      const imageUrl = generateImageUrl(content.notes);
+      const { content: generatedText, imageUrl } = await generateContent(content.notes, platform);
+      const updatedContent = await storage.updateGeneratedContent(id, platform, generatedText);
 
       res.json({
         ...updatedContent,
         imageUrl
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
   });
