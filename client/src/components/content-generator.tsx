@@ -32,13 +32,36 @@ export function ContentGenerator() {
       setContentId(data.id);
       toast({
         title: "Notes saved",
-        description: "You can now generate content for each platform",
+        description: "You can now generate content for all platforms",
       });
     },
     onError: () => {
       toast({
         title: "Error",
         description: "Failed to save notes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      if (!contentId) return null;
+      const res = await apiRequest("POST", `/api/content/${contentId}/generate`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data) {
+        toast({
+          title: "Content Generated",
+          description: "Your content is ready for all platforms",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate content",
         variant: "destructive",
       });
     },
@@ -79,15 +102,28 @@ export function ContentGenerator() {
       </Card>
 
       {contentId && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {platforms.map((platform) => (
-            <PlatformPreview
-              key={platform}
-              platform={platform}
-              contentId={contentId}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex justify-center">
+            <Button
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              className="bg-[#36B37E] hover:bg-[#36B37E]/90"
+            >
+              {generateMutation.isPending ? "Generating..." : "Generate Content for All Platforms"}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {platforms.map((platform) => (
+              <PlatformPreview
+                key={platform}
+                platform={platform}
+                contentId={contentId}
+                generatedData={generateMutation.data}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

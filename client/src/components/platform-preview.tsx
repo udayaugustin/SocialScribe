@@ -1,9 +1,5 @@
-import { useMutation } from "@tanstack/react-query";
 import { type Platform } from "@shared/schema";
-import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { SiInstagram, SiFacebook, SiLinkedin } from "react-icons/si";
 
 const platformIcons = {
@@ -21,35 +17,11 @@ const platformColors = {
 interface PlatformPreviewProps {
   platform: Platform;
   contentId: number;
+  generatedData: any;
 }
 
-export function PlatformPreview({ platform, contentId }: PlatformPreviewProps) {
-  const { toast } = useToast();
+export function PlatformPreview({ platform, contentId, generatedData }: PlatformPreviewProps) {
   const Icon = platformIcons[platform];
-
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest(
-        "POST",
-        `/api/content/${contentId}/generate/${platform}`,
-        {}
-      );
-      return res.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Content Generated",
-        description: `Your ${platform} content is ready`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: `Failed to generate ${platform} content`,
-        variant: "destructive",
-      });
-    },
-  });
 
   return (
     <Card>
@@ -60,15 +32,15 @@ export function PlatformPreview({ platform, contentId }: PlatformPreviewProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {generateMutation.data?.generatedContent?.[platform] ? (
+        {generatedData?.generatedContent?.[platform] ? (
           <>
             <div className="whitespace-pre-wrap">
-              {generateMutation.data.generatedContent[platform]}
+              {generatedData.generatedContent[platform]}
             </div>
-            {generateMutation.data.imageUrl && (
+            {generatedData.imageUrl && (
               <div className="mt-4">
                 <img
-                  src={generateMutation.data.imageUrl}
+                  src={generatedData.imageUrl}
                   alt="Generated content visualization"
                   className="w-full rounded-lg shadow-md"
                 />
@@ -76,13 +48,9 @@ export function PlatformPreview({ platform, contentId }: PlatformPreviewProps) {
             )}
           </>
         ) : (
-          <Button
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-            className="w-full bg-[#36B37E] hover:bg-[#36B37E]/90"
-          >
-            {generateMutation.isPending ? "Generating..." : "Generate Content"}
-          </Button>
+          <div className="text-center text-gray-500">
+            Click the generate button above to create content
+          </div>
         )}
       </CardContent>
     </Card>

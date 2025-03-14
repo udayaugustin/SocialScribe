@@ -38,8 +38,12 @@ async function generateSummaryForImage(content: string): Promise<string> {
   }
 }
 
-export async function generateContent(notes: string, platform: Platform): Promise<{ content: string; imageUrl: string }> {
+export async function generateContent(notes: string): Promise<{
+  contents: { [key in Platform]: string };
+  imageUrl: string;
+}> {
   try {
+    // Generate content for all platforms in one prompt
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
@@ -50,7 +54,18 @@ export async function generateContent(notes: string, platform: Platform): Promis
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: `Generate social media content for ${platform} based on these notes. Follow these guidelines: ${PLATFORM_GUIDELINES[platform]}\n\nNotes: ${notes}`
+              text: `Generate social media content for multiple platforms based on these notes. Please format the response as follows:
+
+For Instagram (${PLATFORM_GUIDELINES.instagram}):
+[Instagram content here]
+
+For Facebook (${PLATFORM_GUIDELINES.facebook}):
+[Facebook content here]
+
+For LinkedIn (${PLATFORM_GUIDELINES.linkedin}):
+[LinkedIn content here]
+
+Notes: ${notes}`
             }]
           }]
         })
@@ -63,17 +78,34 @@ export async function generateContent(notes: string, platform: Platform): Promis
     }
 
     const result = await response.json();
-    const content = result.candidates[0].content.parts[0].text || "Failed to generate content";
-    const imageSummary = await generateSummaryForImage(content);
-    const imageUrl = generateImageUrl(imageSummary);
-    return { content, imageUrl };
+    const fullContent = result.candidates[0].content.parts[0].text || "";
+
+    // Parse the content for each platform
+    const contents: { [key in Platform]: string } = {
+      instagram: "",
+      facebook: "",
+      linkedin: ""
+    };
+
+    // Extract content for each platform using regex
+    const platforms: Platform[] = ["instagram", "facebook", "linkedin"];
+    platforms.forEach(platform => {
+      const regex = new RegExp(`For ${platform.charAt(0).toUpperCase() + platform.slice(1)}.*?:\\n([\\s\\S]*?)(?=\\n\\nFor|$)`, "i");
+      const match = fullContent.match(regex);
+      contents[platform] = match ? match[1].trim() : `Failed to generate ${platform} content`;
+    });
+
+    // Generate a summary based on all content for image generation
+    const summary = await generateSummaryForImage(Object.values(contents).join(" "));
+    const imageUrl = generateImageUrl(summary);
+
+    return { contents, imageUrl };
   } catch (error: any) {
     throw new Error(`Failed to generate content: ${error.message}`);
   }
 }
 
 export function generateImageUrl(prompt: string): string {
-  // Encode the prompt for URL usage
   const encodedPrompt = encodeURIComponent(prompt);
   return `https://image.pollinations.ai/prompt/${encodedPrompt}`;
 }
