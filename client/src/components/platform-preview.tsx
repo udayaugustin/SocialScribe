@@ -5,6 +5,7 @@ import { SiInstagram, SiFacebook, SiLinkedin } from "react-icons/si";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { FacebookConnect } from "./facebook-connect";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -73,13 +74,14 @@ export function PlatformPreview({ platform, contentId, generatedData }: Platform
                 />
               </div>
             )}
+            {platform === 'facebook' && <FacebookConnect />}
             <Button
               onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending}
+              disabled={publishMutation.isPending || (platform === 'facebook' && !window.FB)}
               className="w-full mt-4"
               variant="outline"
             >
-              {publishMutation.isPending ? "Simulating..." : "Simulate Post"}
+              {publishMutation.isPending ? "Posting..." : "Post to " + platform.charAt(0).toUpperCase() + platform.slice(1)}
             </Button>
           </>
         ) : (
