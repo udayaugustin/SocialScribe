@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertContentSchema, platformSchema, type Platform } from "@shared/schema";
 import { generateContent } from "./lib/ai";
 import { publishToSocialMedia, getSimulatedPosts } from "./lib/social";
+import { postToFacebook } from "./lib/facebook";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/content", async (req, res) => {
@@ -44,11 +45,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // New endpoint to simulate posting to social media
+  // Modify the publish endpoint to handle real Facebook posting
   app.post("/api/content/:id/publish/:platform", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const platform = platformSchema.parse(req.params.platform);
+      const { simulate = true } = req.query; // Default to simulation mode
 
       const content = await storage.getContent(id);
       if (!content) {
@@ -60,7 +62,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No generated content found for this platform" });
       }
 
-      // Simulate posting to social media
+      if (simulate === "false" && platform === "facebook") {
+        // Real Facebook posting
+        const result = await postToFacebook(platformContent, req.body.imageUrl);
+        if (!result.success) {
+          return res.status(400).json({ message: "Failed to post to Facebook" });
+        }
+        return res.json({
+          platform,
+          content: { text: platformContent, imageUrl: req.body.imageUrl },
+          postId: result.id,
+          timestamp: new Date().toISOString(),
+          status: "posted"
+        });
+      }
+
+      // Simulation mode for other platforms or when specified
       const post = await publishToSocialMedia(
         platform,
         platformContent,
