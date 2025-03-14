@@ -56,14 +56,14 @@ export async function generateContent(notes: string): Promise<{
             parts: [{
               text: `Generate social media content for multiple platforms based on these notes. Please format the response as follows:
 
-For Instagram (${PLATFORM_GUIDELINES.instagram}):
-[Instagram content here]
+For Instagram:
+[Write engaging, visual-focused content with emojis, max 2200 characters]
 
-For Facebook (${PLATFORM_GUIDELINES.facebook}):
-[Facebook content here]
+For Facebook:
+[Write conversational, detailed content that can include rich media elements, max 63206 characters]
 
-For LinkedIn (${PLATFORM_GUIDELINES.linkedin}):
-[LinkedIn content here]
+For LinkedIn:
+[Write professional, industry-focused content with relevant hashtags, max 3000 characters]
 
 Notes: ${notes}`
             }]
@@ -90,17 +90,20 @@ Notes: ${notes}`
     // Extract content for each platform using regex
     const platforms: Platform[] = ["instagram", "facebook", "linkedin"];
     platforms.forEach(platform => {
-      const regex = new RegExp(`For ${platform.charAt(0).toUpperCase() + platform.slice(1)}.*?:\\n([\\s\\S]*?)(?=\\n\\nFor|$)`, "i");
+      const regex = new RegExp(`For ${platform.charAt(0).toUpperCase() + platform.slice(1)}:\\s*([\\s\\S]*?)(?=For\\s|$)`, "i");
       const match = fullContent.match(regex);
       contents[platform] = match ? match[1].trim() : `Failed to generate ${platform} content`;
     });
 
     // Generate a summary based on all content for image generation
     const summary = await generateSummaryForImage(Object.values(contents).join(" "));
+
+    // Generate an image URL using Pollinations.AI
     const imageUrl = generateImageUrl(summary);
 
     return { contents, imageUrl };
   } catch (error: any) {
+    console.error("Error generating content:", error);
     throw new Error(`Failed to generate content: ${error.message}`);
   }
 }
