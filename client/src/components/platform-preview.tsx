@@ -59,11 +59,22 @@ export function PlatformPreview({ platform, contentId }: PlatformPreviewProps) {
           {platform.charAt(0).toUpperCase() + platform.slice(1)}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {generateMutation.data?.generatedContent?.[platform] ? (
-          <div className="whitespace-pre-wrap">
-            {generateMutation.data.generatedContent[platform]}
-          </div>
+          <>
+            <div className="whitespace-pre-wrap">
+              {generateMutation.data.generatedContent[platform]}
+            </div>
+            {generateMutation.data.imageUrl && (
+              <div className="mt-4">
+                <img
+                  src={generateMutation.data.imageUrl}
+                  alt="Generated content visualization"
+                  className="w-full rounded-lg shadow-md"
+                />
+              </div>
+            )}
+          </>
         ) : (
           <Button
             onClick={() => generateMutation.mutate()}
