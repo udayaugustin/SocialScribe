@@ -1,6 +1,10 @@
 import { type Platform } from "@shared/schema";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { SiInstagram, SiFacebook, SiLinkedin } from "react-icons/si";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -22,6 +26,29 @@ interface PlatformPreviewProps {
 
 export function PlatformPreview({ platform, contentId, generatedData }: PlatformPreviewProps) {
   const Icon = platformIcons[platform];
+  const { toast } = useToast();
+
+  const publishMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/content/${contentId}/publish/${platform}`, {
+        imageUrl: generatedData?.imageUrl
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Post Simulated",
+        description: `Your ${platform} post has been simulated. Check the posts tab to see how it would look.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: `Failed to simulate ${platform} post`,
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <Card>
@@ -46,6 +73,14 @@ export function PlatformPreview({ platform, contentId, generatedData }: Platform
                 />
               </div>
             )}
+            <Button
+              onClick={() => publishMutation.mutate()}
+              disabled={publishMutation.isPending}
+              className="w-full mt-4"
+              variant="outline"
+            >
+              {publishMutation.isPending ? "Simulating..." : "Simulate Post"}
+            </Button>
           </>
         ) : (
           <div className="text-center text-gray-500">
