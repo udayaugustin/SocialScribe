@@ -7,17 +7,32 @@ const PLATFORM_GUIDELINES = {
   linkedin: "Professional tone, industry-focused, can include hashtags, max 3000 characters"
 };
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 export async function generateContent(notes: string, platform: Platform): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    
-    const prompt = `Generate social media content for ${platform} based on these notes. Follow these guidelines: ${PLATFORM_GUIDELINES[platform]}\n\nNotes: ${notes}`;
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Generate social media content for ${platform} based on these notes. Follow these guidelines: ${PLATFORM_GUIDELINES[platform]}\n\nNotes: ${notes}`
+            }]
+          }]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API request failed: ${error}`);
+    }
+
+    const result = await response.json();
+    return result.candidates[0].content.parts[0].text || "Failed to generate content";
   } catch (error: any) {
     throw new Error(`Failed to generate content: ${error.message}`);
   }
