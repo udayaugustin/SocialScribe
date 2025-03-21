@@ -31,7 +31,7 @@ export function PlatformPreview({ platform, contentId, generatedData }: Platform
 
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/content/${contentId}/publish/${platform}`, {
+      const res = await apiRequest("POST", `/api/content/${contentId}/publish/${platform}?simulate=false`, {
         imageUrl: generatedData?.imageUrl
       });
       return res.json();
