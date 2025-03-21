@@ -1,4 +1,3 @@
-import type { Platform } from "@shared/schema";
 
 interface FacebookPostResponse {
   id: string;
@@ -10,15 +9,15 @@ export async function postToFacebook(content: string, imageUrl?: string): Promis
     const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
     const pageId = process.env.FACEBOOK_PAGE_ID;
 
-    if (!pageAccessToken || !pageId) {
-      throw new Error("Facebook credentials not configured");
+    if (!pageAccessToken) {
+      throw new Error("Facebook access token not configured");
     }
 
     // First, upload the image if provided
     let attachmentId: string | undefined;
     if (imageUrl) {
       const photoResponse = await fetch(
-        `https://graph.facebook.com/v18.0/${pageId}/photos?url=${encodeURIComponent(imageUrl)}&published=false&access_token=${pageAccessToken}`,
+        `https://graph.facebook.com/v18.0/me/photos?url=${encodeURIComponent(imageUrl)}&published=false&access_token=${pageAccessToken}`,
         { method: "POST" }
       );
       
@@ -41,7 +40,7 @@ export async function postToFacebook(content: string, imageUrl?: string): Promis
     }
 
     const postResponse = await fetch(
-      `https://graph.facebook.com/v18.0/${pageId}/feed`,
+      `https://graph.facebook.com/v18.0/me/feed`,
       {
         method: "POST",
         headers: {
