@@ -1,10 +1,68 @@
-# Social Scribe
+# SocialScribe
 
-A tool for managing and automating social media content creation and posting.
+SocialScribe is a full-stack web application for creating, managing, and automating social media content across multiple platforms including Facebook, Instagram, and LinkedIn. It uses AI to generate tailored content for each platform from a single set of notes.
+
+## Features
+
+- 🤖 **AI Content Generation**: Generate platform-specific content from a single set of notes
+- 📱 **Multi-Platform Support**: Post to Facebook, Instagram, and LinkedIn
+- 📊 **Facebook Integration**: Connect Facebook accounts, manage pages, and post directly
+- 📝 **Content Management**: Create, edit, and manage your social media posts in one place
+- 🎨 **Modern UI**: Clean, responsive user interface built with React and Tailwind CSS
+
+## Tech Stack
+
+- **Frontend**: React, TypeScript, TailwindCSS, shadcn/ui
+- **Backend**: Node.js, Express, PostgreSQL
+- **AI**: Generated content using Gemini API
+- **Authentication**: OAuth integration for social media platforms
+- **API**: RESTful API design with proper error handling
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or higher)
+- PostgreSQL database
+- Facebook Developer Account (for Facebook integration)
+- Gemini API key (for AI content generation)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/SocialScribe.git
+   cd SocialScribe
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit the `.env` file with your:
+   - Database connection details
+   - API keys
+   - Facebook App credentials
+
+4. Start the development server:
+   ```bash
+   # Start backend server
+   npm run server:dev
+   
+   # In a separate terminal, start frontend
+   npm run client:dev
+   ```
+
+5. Access the application at `http://localhost:5173`
 
 ## Facebook Integration
 
-This project includes tools for posting content to Facebook Pages. Follow these steps to set up:
+This project includes comprehensive tools for posting content to Facebook Pages:
 
 ### 1. Create a Facebook App
 
@@ -18,50 +76,59 @@ This project includes tools for posting content to Facebook Pages. Follow these 
 
 1. In your app dashboard, go to "Add Products"
 2. Add "Facebook Login" product
-3. In Facebook Login settings, add the following redirect URI:
-   - `http://localhost:3000/auth/callback`
-4. Save changes
+3. In Facebook Login settings, configure:
+   - Valid OAuth Redirect URIs: `http://localhost:5173`
+   - Client OAuth Login: Enabled
+   - Web OAuth Login: Enabled
+   - Login with Facebook: Enabled
+4. Under "Permissions and Features," request:
+   - `pages_manage_posts`
+   - `pages_read_engagement`
+5. Save changes
 
 ### 3. Setup Environment Variables
 
-1. Copy `.env.example` to `.env`
-2. Add your Facebook App ID and App Secret:
-   ```
-   FACEBOOK_APP_ID=your_app_id_here
-   FACEBOOK_APP_SECRET=your_app_secret_here
-   ```
-
-### 4. Get User Access Token
-
-Run the Facebook login script to authenticate and get a long-lived access token:
-
-```bash
-node scripts/facebook-login.js
+Add your Facebook App ID and App Secret to the `.env` file:
+```
+FACEBOOK_APP_ID=your_app_id_here
+FACEBOOK_APP_SECRET=your_app_secret_here
 ```
 
-This will:
-1. Open a browser window with a login button
-2. Redirect to Facebook for authentication
-3. Request permission to manage your Pages
-4. Save the token to your `.env` file
+### 4. Using the Application
 
-### 5. Post Content to Facebook
+1. Launch the application
+2. Click "Connect Facebook" in the header
+3. Authenticate with Facebook
+4. Your connected pages will appear in the Facebook page manager
+5. Select pages to post to when creating content
 
-After authenticating, you can post content to your Facebook Pages:
+## Project Structure
 
-```bash
-# Show random content without posting (dry run)
-node scripts/post-to-facebook.js
-
-# Post random content 
-node scripts/post-to-facebook.js --force
-
-# Post specific content (index 0-4)
-node scripts/post-to-facebook.js 2 --force
+```
+├── client/                 # Frontend React application
+│   ├── src/
+│   │   ├── components/     # UI components
+│   │   ├── contexts/       # React contexts
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── lib/            # Utility functions and API clients
+│   │   └── pages/          # Page components
+├── server/                 # Backend Express application
+│   ├── lib/                # Server utilities
+│   ├── routes.ts           # API routes
+│   └── storage.ts          # Database operations
+├── scripts/                # Utility scripts
+│   ├── facebook-login.js   # CLI tool for Facebook auth
+│   └── post-to-facebook.js # CLI tool for Facebook posting
+└── shared/                 # Shared TypeScript types
 ```
 
 ## Available Scripts
 
+- `npm run client:dev` - Start the client development server
+- `npm run server:dev` - Start the server development server
+- `npm run dev` - Start both client and server (using concurrently)
+- `npm run build` - Build the client and server for production
+- `npm start` - Start the production server
 - `node scripts/facebook-login.js` - Authenticate with Facebook and get access token
 - `node scripts/post-to-facebook.js` - Post content to Facebook Pages
 
@@ -69,22 +136,25 @@ node scripts/post-to-facebook.js 2 --force
 
 | Variable | Description |
 |----------|-------------|
+| PORT | Server port (default: 5001) |
+| DATABASE_URL | PostgreSQL connection string |
+| GEMINI_API_KEY | API key for Gemini AI |
 | FACEBOOK_APP_ID | Your Facebook App ID |
 | FACEBOOK_APP_SECRET | Your Facebook App Secret |
-| FACEBOOK_USER_ACCESS_TOKEN | User access token (set automatically by login script) |
-| FACEBOOK_TOKEN_EXPIRES | Expiration date of the token (set automatically) |
+| FACEBOOK_USER_ACCESS_TOKEN | User access token (set automatically by login or UI) |
+| FACEBOOK_TOKEN_EXPIRES | Expiration date of the token |
+| SESSION_SECRET | Secret for session management |
 
-## Token Information
+## Contributing
 
-The Facebook login script will:
-1. Get a short-lived token (lasts ~2 hours)
-2. Exchange it for a long-lived token (lasts ~60 days)
-3. Save the token and expiration date to your `.env` file
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-When the token expires, simply run the login script again to refresh it.
+## License
 
-## Troubleshooting
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-- **Error: No pages found** - Ensure your Facebook account has admin access to at least one Facebook Page
-- **Authentication errors** - Check that your App ID and App Secret are correct in the `.env` file
-- **Permission errors** - Your app may need to be reviewed by Facebook for some permissions 
+## Acknowledgments
+
+- [shadcn/ui](https://github.com/shadcn/ui) for the UI components
+- [Gemini API](https://ai.google.dev/gemini-api) for AI content generation
+- Facebook Developer Platform for social media integration 
