@@ -1,67 +1,135 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { initFacebookSDK, loginWithFacebook, checkFacebookLoginStatus } from "@/lib/facebook";
+import { loginWithFacebook } from "@/lib/facebook";
 import { SiFacebook } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2, RefreshCw } from "lucide-react";
+import { useFacebook } from "@/contexts/facebook-context";
 
 export function FacebookConnect() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    isConnected, 
+    isLoading, 
+    isInitialized,
+    pages,
+    setPages,
+    refreshPages,
+    setIsConnected
+  } = useFacebook();
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [showPages, setShowPages] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    async function init() {
-      try {
-        await initFacebookSDK();
-        const connected = await checkFacebookLoginStatus();
-        setIsConnected(connected);
-      } catch (error) {
-        console.error("Error initializing Facebook SDK:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    init();
-  }, []);
 
   const handleConnect = async () => {
     try {
-      const success = await loginWithFacebook();
-      if (success) {
+      setIsConnecting(true);
+      const response = await loginWithFacebook();
+      console.log("Login response:", response);
+      
+      if (response.success) {
         setIsConnected(true);
+        if (response.pages) {
+          setPages(response.pages);
+        } else {
+          // If pages weren't returned, fetch them
+          await refreshPages();
+        }
+        
         toast({
           title: "Successfully connected",
-          description: "Your Facebook account is now connected",
+          description: `Your Facebook account is now connected with ${pages.length || 0} pages`,
         });
       } else {
         toast({
           title: "Connection failed",
-          description: "Could not connect to Facebook",
+          description: response.message || "Could not connect to Facebook",
           variant: "destructive",
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Facebook connection error:", error);
       toast({
         title: "Error",
-        description: "Failed to connect to Facebook",
+        description: error.message || "Failed to connect to Facebook",
         variant: "destructive",
       });
+    } finally {
+      setIsConnecting(false);
     }
   };
 
+  const handleRetry = () => {
+    setIsRetrying(true);
+    // Refresh the page to reinitialize everything
+    window.location.reload();
+  };
+
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <Button disabled variant="outline" className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading Facebook Integration...
+      </Button>
+    );
+  }
+
+  if (!isInitialized) {
+    return (
+      <div className="space-y-2">
+        <div className="text-sm text-red-500">Facebook SDK initialization failed</div>
+        <Button
+          onClick={handleRetry}
+          className="flex items-center gap-2"
+          variant="outline"
+          disabled={isRetrying}
+        >
+          {isRetrying ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          {isRetrying ? "Retrying..." : "Retry Connection"}
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <Button
-      onClick={handleConnect}
-      disabled={isConnected}
-      className="flex items-center gap-2"
-      variant={isConnected ? "outline" : "default"}
-    >
-      <SiFacebook className="w-5 h-5" />
-      {isConnected ? "Connected to Facebook" : "Connect Facebook"}
-    </Button>
+    <div className="space-y-4">
+      <Button
+        onClick={isConnected ? () => setShowPages(!showPages) : handleConnect}
+        className="flex items-center gap-2"
+        variant={isConnected ? "outline" : "default"}
+        disabled={isConnecting}
+      >
+        {isConnecting ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <SiFacebook className="w-5 h-5" />
+        )}
+        {isConnecting 
+          ? "Connecting..." 
+          : isConnected 
+            ? "Connected to Facebook" 
+            : "Connect Facebook"
+        }
+      </Button>
+      
+      {isConnected && showPages && pages.length > 0 && (
+        <div className="mt-4 p-4 bg-slate-50 rounded-md">
+          <h3 className="font-medium mb-2">Connected Pages ({pages.length})</h3>
+          <ul className="space-y-2">
+            {pages.map(page => (
+              <li key={page.id} className="flex items-center gap-2 p-2 bg-white rounded border">
+                <SiFacebook className="w-4 h-4 text-blue-600" />
+                <span>{page.name}</span>
+                <span className="text-xs text-slate-500 ml-auto">{page.category}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,5 +1,8 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// API base URL with correct port
+const API_BASE_URL = "http://localhost:5001";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -12,7 +15,12 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  // Prepend API_BASE_URL to the URL if it's a relative URL
+  const fullUrl = url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+  
+  console.log(`Making API request to: ${fullUrl}`);
+  
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -29,7 +37,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const url = queryKey[0] as string;
+    const fullUrl = url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
+    
+    console.log(`Making query request to: ${fullUrl}`);
+    
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 

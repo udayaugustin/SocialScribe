@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { type Platform } from "@shared/schema";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,8 @@ import { SiInstagram, SiFacebook, SiLinkedin } from "react-icons/si";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { FacebookConnect } from "./facebook-connect";
+import { FacebookPageManager } from "./facebook-page-manager";
+import { useFacebook, type FacebookPage } from "@/contexts/facebook-context";
 
 const platformIcons = {
   instagram: SiInstagram,
@@ -28,12 +30,28 @@ interface PlatformPreviewProps {
 export function PlatformPreview({ platform, contentId, generatedData }: PlatformPreviewProps) {
   const Icon = platformIcons[platform];
   const { toast } = useToast();
+  const [selectedPages, setSelectedPages] = useState<FacebookPage[]>([]);
+  const [showPageManager, setShowPageManager] = useState(false);
 
   const publishMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/content/${contentId}/publish/${platform}?simulate=false`, {
+      const payload: any = {
         imageUrl: generatedData?.imageUrl
-      });
+      };
+      
+      // Add selected pages for Facebook
+      if (platform === 'facebook' && selectedPages.length > 0) {
+        payload.pages = selectedPages.map(page => ({
+          id: page.id,
+          name: page.name
+        }));
+      }
+      
+      const res = await apiRequest(
+        "POST", 
+        `/api/content/${contentId}/publish/${platform}?simulate=false`, 
+        payload
+      );
       return res.json();
     },
     onSuccess: () => {
@@ -50,6 +68,10 @@ export function PlatformPreview({ platform, contentId, generatedData }: Platform
       });
     },
   });
+
+  const handlePagesSelected = (pages: FacebookPage[]) => {
+    setSelectedPages(pages);
+  };
 
   return (
     <Card>
@@ -74,14 +96,51 @@ export function PlatformPreview({ platform, contentId, generatedData }: Platform
                 />
               </div>
             )}
-            {platform === 'facebook' && <FacebookConnect />}
+            
+            {platform === 'facebook' && (
+              <div className="mt-4">
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowPageManager(!showPageManager)}
+                  >
+                    {showPageManager ? "Hide" : "Manage"} Pages
+                  </Button>
+                </div>
+                
+                {showPageManager && (
+                  <div className="mt-4">
+                    <FacebookPageManager 
+                      onPagesSelected={handlePagesSelected}
+                      showSelectionControls={true}
+                    />
+                  </div>
+                )}
+                
+                {selectedPages.length > 0 && (
+                  <div className="mt-4 p-2 bg-blue-50 rounded-md">
+                    <p className="text-sm text-blue-600">
+                      Will post to {selectedPages.length} selected {selectedPages.length === 1 ? 'page' : 'pages'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
             <Button
               onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending || (platform === 'facebook' && !window.FB)}
+              disabled={
+                publishMutation.isPending || 
+                (platform === 'facebook' && (!window.FB || (selectedPages.length === 0 && showPageManager)))
+              }
               className="w-full mt-4"
               variant="outline"
             >
-              {publishMutation.isPending ? "Posting..." : "Post to " + platform.charAt(0).toUpperCase() + platform.slice(1)}
+              {publishMutation.isPending 
+                ? "Posting..." 
+                : "Post to " + platform.charAt(0).toUpperCase() + platform.slice(1)
+              }
             </Button>
           </>
         ) : (

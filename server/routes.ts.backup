@@ -1,0 +1,117 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertContentSchema, platformSchema, type Platform } from "@shared/schema";
+import { generateContent } from "./lib/ai";
+import { publishToSocialMedia, getSimulatedPosts } from "./lib/social";
+import { postToFacebook } from "./lib/facebook";
+import fetch from "node-fetch";
+import { config } from "dotenv";
+
+// Load environment variables
+config();
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Get Facebook configuration
+  app.get("/api/config/facebook", (_req, res) => {
+    // Only expose the app ID, never the app secret
+    res.json({
+      appId: process.env.FACEBOOK_APP_ID || "",
+    });
+  });
+
+  // Facebook Authentication endpoint
+  app.post("/api/auth/facebook", async (req, res) => {
+    try {
+      const { accessToken } = req.body;
+      
+      if (!accessToken) {
+        return res.status(400).json({ message: "Access token is required" });
+      }
+
+      // Exchange short-lived token for long-lived token
+      const longLivedTokenResponse = await fetch(
+        `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${process.env.FACEBOOK_APP_ID}&client_secret=${process.env.FACEBOOK_APP_SECRET}&fb_exchange_token=${accessToken}`,
+        { method: 'GET' }
+      );
+      
+      if (!longLivedTokenResponse.ok) {
+        const error = await longLivedTokenResponse.json() as { error?: { message?: string } };
+        return res.status(400).json({ 
+          message: `Failed to get long-lived token: ${error.error?.message || 'Unknown error'}` 
+        });
+      }
+      
+      const tokenData = await longLivedTokenResponse.json() as { 
+        access_token: string; 
+        expires_in: number 
+      };
+      const { access_token: longLivedToken, expires_in } = tokenData;
+      
+      // Get user's Facebook pages
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${longLivedToken}`,
+        { method: 'GET' }
+      );
+      
+      if (!pagesResponse.ok) {
+        const error = await pagesResponse.json() as { error?: { message?: string } };
+        return res.status(400).json({ 
+          message: `Failed to get pages: ${error.error?.message || 'Unknown error'}` 
+        });
+      }
+      
+      const pagesData = await pagesResponse.json() as {
+        data?: Array<{
+          id: string;
+          name: string;
+          category: string;
+          access_token: string;
+        }>;
+      };
+      const pages = pagesData.data || [];
+      
+      if (pages.length === 0) {
+        return res.status(400).json({ message: "No Facebook pages found for this user" });
+      }
+      
+      // Save the tokens (in a real app, you'd save these to a database)
+      process.env.FACEBOOK_USER_ACCESS_TOKEN = longLivedToken;
+      
+      // Return success with page information
+      res.json({
+        success: true,
+        pages: pages.map((page: any) => ({
+          id: page.id,
+          name: page.name,
+          category: page.category
+        })),
+        tokenExpires: new Date(Date.now() + expires_in * 1000).toISOString()
+      });
+    } catch (error: any) {
+      console.error("Facebook auth error:", error);
+      res.status(500).json({ message: error.message || "Authentication failed" });
+    }
+  });
+
+  // Endpoint to get connected Facebook pages
+  app.get("/api/facebook/pages", async (req, res) => {
+    try {
+      const accessToken = process.env.FACEBOOK_USER_ACCESS_TOKEN;
+      
+      if (!accessToken) {
+        return res.status(401).json({ 
+          message: "No Facebook access token available. Please connect to Facebook first." 
+        });
+      }
+      
+      // Get user's Facebook pages
+      const pagesResponse = await fetch(
+        `https://graph.facebook.com/v18.0/me/accounts?access_token=${accessToken}`,
+        { method: 'GET' }
+      );
+      
+      if (!pagesResponse.ok) {
+        const error = await pagesResponse.json() as { error?: { message?: string } };
+        return res.status(400).json({ 
+          message: `Failed to get pages: ${error.error?.message || 'Unknown error'}`
